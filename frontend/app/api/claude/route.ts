@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
       messages: messages
     });
 
-    const textContent = message.content.find((block: any) => block.type === 'text')?.text || '';
+    const textBlock = message.content.find((block: any) => block.type === 'text');
+    const textContent = textBlock && 'text' in textBlock ? textBlock.text : '';
 
     return NextResponse.json({
       content: textContent,
