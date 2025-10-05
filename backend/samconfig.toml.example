@@ -1,0 +1,13 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "engineering-cad-ai-backend"
+s3_bucket = "your-sam-s3-bucket"
+s3_prefix = "engineering-cad-ai-backend"
+region = "us-east-2"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "ClaudeApiKey=\"your_claude_api_key_here\""
+image_repositories = []
+

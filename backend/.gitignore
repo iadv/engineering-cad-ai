@@ -1,0 +1,10 @@
+.env
+.aws-sam/
+*.pyc
+__pycache__/
+*.egg-info/
+dist/
+build/
+.DS_Store
+samconfig.toml
+

@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Engineering CAD AI Backend - Production Grade
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Runtime: python3.11
+    Environment:
+      Variables:
+        CLAUDE_API_KEY: !Ref ClaudeApiKey
+
+Parameters:
+  ClaudeApiKey:
+    Type: String
+    Description: Claude API Key
+    NoEcho: true
+
+Resources:
+  DxfExecutorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/dxf_executor/
+      Handler: handler.lambda_handler
+      Description: Execute DXF code generation with ezdxf
+      Timeout: 300
+      MemorySize: 2048
+      Events:
+        ExecuteDxf:
+          Type: Api
+          Properties:
+            Path: /execute-dxf
+            Method: post
+        ExecuteDxfOptions:
+          Type: Api
+          Properties:
+            Path: /execute-dxf
+            Method: options
+            
+  ClaudeProxyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/claude_proxy/
+      Handler: handler.lambda_handler
+      Description: Proxy for Claude API calls
+      Timeout: 120
+      MemorySize: 512
+      Events:
+        ClaudeCall:
+          Type: Api
+          Properties:
+            Path: /claude
+            Method: post
+        ClaudeOptions:
+          Type: Api
+          Properties:
+            Path: /claude
+            Method: options
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiEndpoint"
+  
+  DxfExecutorFunctionArn:
+    Description: "DXF Executor Lambda Function ARN"
+    Value: !GetAtt DxfExecutorFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-DxfExecutorFunctionArn"
+  
+  ClaudeProxyFunctionArn:
+    Description: "Claude Proxy Lambda Function ARN"
+    Value: !GetAtt ClaudeProxyFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ClaudeProxyFunctionArn"
+
