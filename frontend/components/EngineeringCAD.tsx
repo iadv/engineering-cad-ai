@@ -12,6 +12,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { Loader2, Send, Download, ChevronRight, Code2, RefreshCw, Sparkles, Ruler, FileCode } from 'lucide-react';
+import IllustrationViewer from './IllustrationViewer';
 
 // Dynamically import Monaco Editor and DXF Viewer (client-side only)
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -52,6 +53,8 @@ export default function EngineeringCAD() {
   const [executionLog, setExecutionLog] = useState<string[]>([]);
   const [showPythonCode, setShowPythonCode] = useState(false);
   const [designSummary, setDesignSummary] = useState<any>(null);
+  const [illustrations, setIllustrations] = useState<Array<{ viewType: string; image: string; label: string }>>([]);
+  const [isGeneratingIllustrations, setIsGeneratingIllustrations] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
@@ -136,6 +139,55 @@ Return a JSON object with the design summary.`;
       console.error('Design summary generation failed:', error);
       // Don't block the main flow if summary fails
     }
+  };
+
+  const generateIllustrations = async (analysisText: string) => {
+    setIsGeneratingIllustrations(true);
+    setIllustrations([]); // Clear previous illustrations
+
+    const viewTypes = [
+      { type: 'isometric', label: 'Isometric 3D' },
+      { type: 'sketch', label: 'Engineering Sketch' },
+      { type: 'front', label: 'Front View' },
+      { type: 'top', label: 'Top View' },
+      { type: 'render', label: '3D Rendering' }
+    ];
+
+    // Generate all 5 illustrations in parallel
+    const promises = viewTypes.map(async ({ type, label }) => {
+      try {
+        const response = await fetch('/api/generate-illustration', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: analysisText,
+            viewType: type
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to generate ${label}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.success && data.image) {
+          // Add illustration as soon as it's ready (don't wait for all 5)
+          setIllustrations(prev => [...prev, {
+            viewType: type,
+            image: data.image,
+            label: label
+          }]);
+        }
+      } catch (error) {
+        console.error(`Error generating ${label}:`, error);
+        // Continue with other illustrations even if one fails
+      }
+    });
+
+    // Wait for all to complete, but illustrations populate as they arrive
+    await Promise.allSettled(promises);
+    setIsGeneratingIllustrations(false);
   };
 
   const executeDXFCode = async (fullCode: string, attempt: number = 1, maxAttempts: number = 3): Promise<any> => {
@@ -226,6 +278,9 @@ Return a JSON object with the design summary.`;
 
       // Generate design summary in parallel (don't await - let it run in background)
       generateDesignSummary(analysisResponse, userMessage);
+
+      // Generate AI illustrations in parallel (don't await - populate as they arrive)
+      generateIllustrations(analysisResponse);
 
       // Step 2: Generate Python code
       setStatus({ stage: 'generating', message: 'Generating Python code...' });
@@ -441,37 +496,48 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
         <div className="w-3/5 flex flex-col">
           {/* Top: DXF + Summary */}
           <div className="flex-1 flex overflow-hidden">
-            {/* DXF Viewer (60%) */}
+            {/* DXF Viewer + Illustrations (60%) */}
             <div className="w-3/5 border-r flex flex-col">
-              <div className="border-b p-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold">CAD Drawing</h2>
-                <Button onClick={downloadDXF} disabled={!dxf} size="sm" variant="outline" className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Download DXF
-                </Button>
-              </div>
-              <div className="flex-1 overflow-auto p-6">
-                {error && (
-                  <Card className="mb-4 border-destructive/50 bg-destructive/10">
-                    <CardContent className="p-4">
-                      <p className="text-sm font-semibold text-destructive mb-1">Error</p>
-                      <pre className="text-xs text-destructive/90 whitespace-pre-wrap font-mono">{error}</pre>
-                    </CardContent>
-                  </Card>
-                )}
-                {dxf ? (
-                  <DXFViewer dxfContent={dxf} stats={stats || undefined} />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-muted flex items-center justify-center">
-                        <FileCode className="w-10 h-10 text-muted-foreground" />
+              {/* DXF Viewer (top half) */}
+              <div className="flex-1 flex flex-col border-b">
+                <div className="border-b p-4 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">CAD Drawing</h2>
+                  <Button onClick={downloadDXF} disabled={!dxf} size="sm" variant="outline" className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Download DXF
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-auto p-6">
+                  {error && (
+                    <Card className="mb-4 border-destructive/50 bg-destructive/10">
+                      <CardContent className="p-4">
+                        <p className="text-sm font-semibold text-destructive mb-1">Error</p>
+                        <pre className="text-xs text-destructive/90 whitespace-pre-wrap font-mono">{error}</pre>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {dxf ? (
+                    <DXFViewer dxfContent={dxf} stats={stats || undefined} />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-muted flex items-center justify-center">
+                          <FileCode className="w-10 h-10 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">No drawing generated yet</p>
+                        <p className="text-xs text-muted-foreground/70">Start by describing your engineering problem</p>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">No drawing generated yet</p>
-                      <p className="text-xs text-muted-foreground/70">Start by describing your engineering problem</p>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              </div>
+
+              {/* AI Illustrations (bottom half) */}
+              <div className="flex-1 overflow-auto p-6">
+                <IllustrationViewer 
+                  illustrations={illustrations} 
+                  isLoading={isGeneratingIllustrations} 
+                />
               </div>
             </div>
 
