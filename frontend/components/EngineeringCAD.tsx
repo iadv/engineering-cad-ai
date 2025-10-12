@@ -411,31 +411,33 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="border-b px-6 py-4">
-        <div className="flex items-center justify-between">
+      <header className="border-b px-4 md:px-6 py-3 md:py-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600">
               <Ruler className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold">Engineering CAD AI</h1>
-              <p className="text-sm text-muted-foreground">AI-powered design generation</p>
+              <h1 className="text-base md:text-lg font-semibold">Engineering CAD AI</h1>
+              <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">AI-powered design generation</p>
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-6 flex-wrap">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
-              <span className="text-sm text-muted-foreground">{status.message}</span>
+              <span className="text-xs md:text-sm text-muted-foreground truncate max-w-[150px] md:max-w-none">{status.message}</span>
             </div>
             {stats && (
-              <div className="flex items-center gap-4">
-                <Badge variant="outline" className="gap-1.5">
+              <div className="flex items-center gap-2 md:gap-4">
+                <Badge variant="outline" className="gap-1.5 text-xs">
                   <FileCode className="w-3 h-3" />
-                  {stats.entities} entities
+                  <span className="hidden sm:inline">{stats.entities} entities</span>
+                  <span className="sm:hidden">{stats.entities}</span>
                 </Badge>
-                <Badge variant="outline" className="gap-1.5">
+                <Badge variant="outline" className="gap-1.5 text-xs">
                   <Ruler className="w-3 h-3" />
-                  {stats.layers} layers
+                  <span className="hidden sm:inline">{stats.layers} layers</span>
+                  <span className="sm:hidden">{stats.layers}</span>
                 </Badge>
               </div>
             )}
@@ -444,10 +446,10 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Chat (40%) */}
-        <div className="w-2/5 border-r flex flex-col">
-          <ScrollArea className="flex-1 p-6">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* Left: Chat (40% on desktop, full width on mobile) */}
+        <div className="w-full md:w-2/5 border-r flex flex-col h-1/2 md:h-auto">
+          <ScrollArea className="flex-1 p-4 md:p-6">
             {messages.length === 0 && (
               <div className="text-center mt-12">
                 <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -532,14 +534,14 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
           </div>
         </div>
 
-        {/* Right: DXF Viewer + Design Summary + Code (60%) */}
-        <div className="w-3/5 flex flex-col">
+        {/* Right: DXF Viewer + Design Summary + Code (60% on desktop, full width on mobile) */}
+        <div className="w-full md:w-3/5 flex flex-col h-1/2 md:h-auto">
           {/* Top: DXF + Summary */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* Illustrations + DXF Viewer (60%) */}
-            <div className="w-3/5 border-r flex flex-col">
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            {/* Illustrations + DXF Viewer (60% on desktop, full width on mobile) */}
+            <div className="w-full md:w-3/5 border-r flex flex-col">
               {/* AI Illustrations (top half) */}
-              <div className="flex-1 overflow-auto p-6 border-b">
+              <div className="flex-1 overflow-auto p-4 md:p-6 border-b">
                 <IllustrationViewer 
                   illustrations={illustrations} 
                   isLoading={isGeneratingIllustrations} 
@@ -555,7 +557,7 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
                     Download DXF
                   </Button>
                 </div>
-                <div className="flex-1 overflow-auto p-6">
+                <div className="flex-1 overflow-auto p-4 md:p-6">
                   {error && (
                     <Card className="mb-4 border-destructive/50 bg-destructive/10">
                       <CardContent className="p-4">
@@ -581,9 +583,9 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
               </div>
             </div>
 
-            {/* Design Summary (40%) */}
-            <div className="w-2/5 bg-muted/30">
-              <ScrollArea className="h-full p-6">
+            {/* Design Summary (40% on desktop, full width on mobile) */}
+            <div className="w-full md:w-2/5 bg-muted/30">
+              <ScrollArea className="h-full p-4 md:p-6">
                 <DesignSummary summary={designSummary} />
               </ScrollArea>
             </div>
