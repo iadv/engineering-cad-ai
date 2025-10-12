@@ -30,6 +30,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Extract image from response
+    if (!response.candidates || response.candidates.length === 0) {
+      return NextResponse.json(
+        { error: 'No candidates in response' },
+        { status: 500 }
+      );
+    }
+
     for (const part of response.candidates[0].content.parts) {
       if (part.inlineData) {
         const imageData = part.inlineData.data;
