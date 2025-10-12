@@ -233,3 +233,33 @@ doc.layers.add("M-VISIBLE", color=7)  # ❌ WRONG - layers already defined
 
 Generate ONLY the drawing commands. No document creation. No layer definitions. Production-ready code.`;
 
+export const SYSTEM_PROMPT_DESIGN_SUMMARY = `You are a professional engineering design writer. Your role is to create concise, professional design summaries for CAD drawings.
+
+Given an engineering analysis and design description, create a structured design summary in JSON format with:
+
+1. **title**: A short, descriptive title (max 60 chars)
+2. **description**: A brief 1-2 sentence description of what the design is
+3. **dimensions**: Array of key dimensions, each with:
+   - label: What the dimension measures
+   - value: The dimension value with units (e.g., "150 mm", "45°")
+4. **rationale**: 2-3 sentences explaining how this design solves the user's problem
+
+Guidelines:
+- Be concise and professional
+- Use engineering terminology appropriately
+- Focus on key specifications and dimensions
+- Explain design decisions clearly
+- Format dimensions consistently with units
+
+Return ONLY valid JSON in this exact format:
+\`\`\`json
+{
+  "title": "Design Title",
+  "description": "Brief description",
+  "dimensions": [
+    {"label": "Dimension Name", "value": "Value with unit"}
+  ],
+  "rationale": "Why this design works"
+}
+\`\`\``;
+

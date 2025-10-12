@@ -252,41 +252,27 @@ export default function DXFViewer({ dxfContent, stats }: DXFViewerProps) {
   }, [dxfContent, showRawDXF]);
 
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden">
+    <div className="bg-[#0a0a0a] rounded-xl overflow-hidden border border-[#27272a]">
       {/* Header with Stats and Toggle */}
-      <div className="bg-gray-900 p-4 border-b border-gray-700">
+      <div className="bg-[#18181b] p-4 border-b border-[#27272a]">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-green-400">✓ DXF Generated Successfully</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                const blob = new Blob([dxfContent], { type: 'application/dxf' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `engineering-drawing-${Date.now()}.dxf`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              className="px-3 py-1 text-xs bg-green-600 hover:bg-green-500 rounded transition-colors"
-            >
-              💾 Download DXF
-            </button>
-            <button
-              onClick={() => setShowRawDXF(!showRawDXF)}
-              className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-            >
-              {showRawDXF ? '📐 Show 2D View' : '📝 Show Raw DXF'}
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#10b981]"></div>
+            <h3 className="text-sm font-medium text-[#fafafa]">Drawing Generated</h3>
           </div>
+          <button
+            onClick={() => setShowRawDXF(!showRawDXF)}
+            className="px-3 py-1 text-xs bg-[#27272a] hover:bg-[#3f3f46] rounded-lg transition-colors text-[#a1a1aa]"
+          >
+            {showRawDXF ? '2D View' : 'Raw DXF'}
+          </button>
         </div>
         {stats && (
-          <div className="text-xs text-gray-400 space-y-1">
-            <p>Entities: {stats.entities} | Layers: {stats.layers}</p>
+          <div className="text-xs text-[#71717a] space-y-1">
+            <p>{stats.entities} entities • {stats.layers} layers</p>
             {stats.bounds && (
-              <p className="text-gray-500">
-                Bounds: ({stats.bounds.min_x.toFixed(1)}, {stats.bounds.min_y.toFixed(1)}) to 
-                ({stats.bounds.max_x.toFixed(1)}, {stats.bounds.max_y.toFixed(1)})
+              <p className="text-[#52525b] font-mono text-[10px]">
+                [{stats.bounds.min_x.toFixed(1)}, {stats.bounds.min_y.toFixed(1)}] → [{stats.bounds.max_x.toFixed(1)}, {stats.bounds.max_y.toFixed(1)}]
               </p>
             )}
           </div>
@@ -296,9 +282,9 @@ export default function DXFViewer({ dxfContent, stats }: DXFViewerProps) {
       {/* Viewer Content */}
       {showRawDXF ? (
         <div className="p-4">
-          <div className="bg-gray-900 rounded p-3 border border-gray-700">
-            <p className="text-xs text-gray-500 mb-2">Raw DXF Content:</p>
-            <pre className="text-xs text-gray-400 max-h-96 overflow-auto font-mono">
+          <div className="bg-[#18181b] rounded-lg p-4 border border-[#27272a]">
+            <p className="text-xs text-[#71717a] mb-3 font-medium">Raw DXF Content</p>
+            <pre className="text-[11px] text-[#a1a1aa] max-h-96 overflow-auto font-mono leading-relaxed">
               {dxfContent.substring(0, 3000)}
               {dxfContent.length > 3000 && '\n...\n(content truncated)'}
             </pre>
@@ -315,9 +301,9 @@ export default function DXFViewer({ dxfContent, stats }: DXFViewerProps) {
       )}
 
       {/* Download Instructions */}
-      <div className="bg-gray-900 p-3 border-t border-gray-700 text-center">
-        <p className="text-xs text-gray-500">
-          Download to open in AutoCAD/LibreCAD
+      <div className="bg-[#18181b] p-3 border-t border-[#27272a] text-center">
+        <p className="text-xs text-[#52525b]">
+          Compatible with AutoCAD, LibreCAD, and other DXF viewers
         </p>
       </div>
     </div>

@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { PYTHON_TEMPLATE, SYSTEM_PROMPT_ANALYSIS, SYSTEM_PROMPT_CODE_GEN } from '@/lib/constants';
+import { PYTHON_TEMPLATE, SYSTEM_PROMPT_ANALYSIS, SYSTEM_PROMPT_CODE_GEN, SYSTEM_PROMPT_DESIGN_SUMMARY } from '@/lib/constants';
+import DesignSummary from './DesignSummary';
 
 // Dynamically import Monaco Editor and DXF Viewer (client-side only)
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -41,6 +42,8 @@ export default function EngineeringCAD() {
   const [conversationHistory, setConversationHistory] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [executionLog, setExecutionLog] = useState<string[]>([]);
+  const [showPythonCode, setShowPythonCode] = useState(false);
+  const [designSummary, setDesignSummary] = useState<any>(null);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
@@ -86,6 +89,45 @@ export default function EngineeringCAD() {
     ]);
 
     return data.content;
+  };
+
+  const generateDesignSummary = async (analysisText: string, userPrompt: string) => {
+    try {
+      const summaryPrompt = `Based on the following engineering analysis and user request, create a professional design summary.
+
+User Request: ${userPrompt}
+
+Engineering Analysis:
+${analysisText}
+
+Return a JSON object with the design summary.`;
+
+      const response = await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage: summaryPrompt,
+          systemPrompt: SYSTEM_PROMPT_DESIGN_SUMMARY,
+          isCodeGen: false
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate design summary');
+      }
+
+      const data = await response.json();
+      const jsonMatch = data.content.match(/```json\n([\s\S]*?)```/) || data.content.match(/{[\s\S]*}/);
+      
+      if (jsonMatch) {
+        const jsonStr = jsonMatch[1] || jsonMatch[0];
+        const summary = JSON.parse(jsonStr);
+        setDesignSummary(summary);
+      }
+    } catch (error) {
+      console.error('Design summary generation failed:', error);
+      // Don't block the main flow if summary fails
+    }
   };
 
   const executeDXFCode = async (fullCode: string, attempt: number = 1, maxAttempts: number = 3): Promise<any> => {
@@ -174,6 +216,9 @@ export default function EngineeringCAD() {
         return;
       }
 
+      // Generate design summary in parallel (don't await - let it run in background)
+      generateDesignSummary(analysisResponse, userMessage);
+
       // Step 2: Generate Python code
       setStatus({ stage: 'generating', message: 'Generating Python code...' });
       const codePrompt = `Based on this engineering analysis, generate Python code using ezdxf to create the CAD drawing.
@@ -253,30 +298,50 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
 
   const getStatusColor = () => {
     switch (status.stage) {
-      case 'success': return 'bg-green-500';
-      case 'error': return 'bg-red-500';
-      case 'idle': return 'bg-gray-500';
-      default: return 'bg-blue-500 status-pulse';
+      case 'success': return 'bg-[#10b981]';
+      case 'error': return 'bg-[#ef4444]';
+      case 'idle': return 'bg-[#71717a]';
+      default: return 'bg-[#3b82f6] status-pulse';
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+    <div className="flex flex-col h-screen bg-[#0a0a0a] text-white">
+      {/* Modern Header */}
+      <header className="bg-[#18181b] border-b border-[#27272a] px-6 py-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-blue-400">Engineering CAD AI</h1>
-            <p className="text-sm text-gray-400">Production-grade engineering analysis and DXF generation</p>
-          </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
-              <span className="text-sm text-gray-300">{status.message}</span>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#2563eb] flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-[#fafafa]">Engineering CAD AI</h1>
+                <p className="text-xs text-[#71717a]">AI-powered design generation</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className={`w-2 h-2 rounded-full ${getStatusColor()}`}></div>
+              <span className="text-sm text-[#a1a1aa]">{status.message}</span>
             </div>
             {stats && (
-              <div className="text-sm text-gray-400">
-                {stats.entities} entities | {stats.layers} layers
+              <div className="flex items-center gap-4 text-xs text-[#71717a]">
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343" />
+                  </svg>
+                  {stats.entities} entities
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                  </svg>
+                  {stats.layers} layers
+                </span>
               </div>
             )}
           </div>
@@ -285,41 +350,58 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel: Chat */}
-        <div className="w-1/3 flex flex-col border-r border-gray-700 bg-gray-850">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Left Panel: Chat (40%) */}
+        <div className="w-2/5 flex flex-col border-r border-[#27272a]">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.length === 0 && (
-              <div className="text-center text-gray-500 mt-8">
-                <h2 className="text-xl font-semibold mb-2">Welcome to Engineering CAD AI</h2>
-                <p className="text-sm">Describe your engineering problem and I'll generate a CAD drawing for you.</p>
-                <div className="mt-6 text-left max-w-md mx-auto space-y-2 text-xs">
-                  <p className="font-semibold text-gray-400">Example prompts:</p>
-                  <p className="text-gray-500">• Design a simply supported beam 5 meters long with a 10kN point load at center</p>
-                  <p className="text-gray-500">• Create a rectangular steel plate 200mm x 150mm with 4 mounting holes</p>
-                  <p className="text-gray-500">• Draw a cantilever beam with dimensions and load diagram</p>
+              <div className="text-center mt-12">
+                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#3b82f6]/20 to-[#2563eb]/20 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-[#3b82f6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-semibold text-[#fafafa] mb-3">Start a new design</h2>
+                <p className="text-sm text-[#a1a1aa] mb-8 max-w-sm mx-auto">
+                  Describe your engineering problem and I'll generate a professional CAD drawing with dimensions and analysis.
+                </p>
+                <div className="text-left max-w-md mx-auto space-y-3">
+                  <p className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-3">Example prompts</p>
+                  {[
+                    'Design a simply supported beam 5m long with 10kN point load at center',
+                    'Create a rectangular steel plate 200×150mm with 4 mounting holes',
+                    'Draw a cantilever beam with dimensions and load diagram'
+                  ].map((example, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setInputValue(example)}
+                      className="w-full text-left p-3 rounded-lg bg-[#18181b] border border-[#27272a] hover:border-[#3b82f6] transition-colors text-sm text-[#a1a1aa] hover:text-[#fafafa]"
+                    >
+                      {example}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
             {messages.map((msg, idx) => (
-              <div key={idx} className={`chat-message ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-                <div className={`inline-block max-w-[80%] p-3 rounded-lg ${
+              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                   msg.role === 'user' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-700 text-gray-100'
+                    ? 'bg-[#3b82f6] text-white' 
+                    : 'bg-[#18181b] border border-[#27272a] text-[#fafafa]'
                 }`}>
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  <p className="text-xs opacity-50 mt-1">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                  <p className="text-xs opacity-60 mt-2">
                     {msg.timestamp.toLocaleTimeString()}
                   </p>
                 </div>
               </div>
             ))}
             {isProcessing && (
-              <div className="text-left">
-                <div className="inline-block p-3 rounded-lg bg-gray-700">
-                  <div className="flex items-center gap-2">
+              <div className="flex justify-start">
+                <div className="bg-[#18181b] border border-[#27272a] rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-3">
                     <div className="spinner"></div>
-                    <span className="text-sm text-gray-300">{status.message}</span>
+                    <span className="text-sm text-[#a1a1aa]">{status.message}</span>
                   </div>
                 </div>
               </div>
@@ -327,105 +409,155 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
             <div ref={chatEndRef} />
           </div>
 
-          {/* Execution Log */}
-          {executionLog.length > 0 && (
-            <div className="border-t border-gray-700 p-3 bg-gray-800 max-h-32 overflow-y-auto">
-              <p className="text-xs font-semibold text-gray-400 mb-1">Execution Log:</p>
-              {executionLog.map((log, idx) => (
-                <p key={idx} className="text-xs text-gray-500 font-mono">{log}</p>
+          {/* Execution Log (compact) */}
+          {executionLog.length > 0 && error && (
+            <div className="border-t border-[#27272a] p-4 bg-[#18181b]/50 max-h-24 overflow-y-auto">
+              <p className="text-xs font-semibold text-[#71717a] mb-2">Execution Log</p>
+              {executionLog.slice(-3).map((log, idx) => (
+                <p key={idx} className="text-xs text-[#52525b] font-mono">{log}</p>
               ))}
             </div>
           )}
 
-          {/* Chat Input */}
-          <div className="border-t border-gray-700 p-4 bg-gray-800">
-            <form onSubmit={handleSubmit} className="flex gap-2">
+          {/* Modern Chat Input */}
+          <div className="border-t border-[#27272a] p-4 bg-[#18181b]">
+            <form onSubmit={handleSubmit} className="flex gap-3">
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Describe your engineering problem..."
                 disabled={isProcessing}
-                className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                className="flex-1 bg-[#0a0a0a] text-[#fafafa] px-4 py-3 rounded-xl border border-[#27272a] focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] disabled:opacity-50 placeholder:text-[#52525b] text-sm"
               />
               <button
                 type="submit"
                 disabled={isProcessing || !inputValue.trim()}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gradient-to-r from-[#3b82f6] to-[#2563eb] hover:from-[#2563eb] hover:to-[#1d4ed8] text-white px-6 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm shadow-lg shadow-[#3b82f6]/20"
               >
-                Send
+                {isProcessing ? 'Processing...' : 'Generate'}
               </button>
             </form>
           </div>
         </div>
 
-        {/* Middle Panel: Code Editor */}
-        <div className="w-1/3 flex flex-col bg-gray-900">
-          <div className="flex items-center justify-between bg-gray-800 px-4 py-2 border-b border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-300">Python Code (ezdxf)</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={handleRegenerate}
-                disabled={isProcessing || !pythonCode}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-semibold disabled:opacity-50"
-              >
-                {isProcessing ? 'Processing...' : 'Regenerate DXF'}
-              </button>
+        {/* Right Panel: DXF Viewer + Design Summary + Collapsible Code (60%) */}
+        <div className="w-3/5 flex flex-col">
+          {/* Top Section: DXF Viewer + Design Summary */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* DXF Viewer (Left, 60% of right panel) */}
+            <div className="w-3/5 flex flex-col border-r border-[#27272a]">
+              <div className="flex items-center justify-between bg-[#18181b] px-4 py-3 border-b border-[#27272a]">
+                <h2 className="text-sm font-semibold text-[#fafafa]">CAD Drawing</h2>
+                <button
+                  onClick={downloadDXF}
+                  disabled={!dxf}
+                  className="flex items-center gap-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download DXF
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-6">
+                {error && (
+                  <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-xl p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-[#ef4444] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-semibold text-[#ef4444] mb-1">Error</p>
+                        <pre className="text-xs text-[#fca5a5] whitespace-pre-wrap font-mono">{error}</pre>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {dxf ? (
+                  <DXFViewer dxfContent={dxf} stats={stats || undefined} />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[#27272a] flex items-center justify-center">
+                        <svg className="w-10 h-10 text-[#52525b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm text-[#a1a1aa] mb-2">No drawing generated yet</p>
+                      <p className="text-xs text-[#71717a]">Start by describing your engineering problem</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Design Summary (Right, 40% of right panel) */}
+            <div className="w-2/5 flex flex-col bg-[#0a0a0a]">
+              <div className="flex-1 overflow-y-auto p-6">
+                <DesignSummary summary={designSummary} />
+              </div>
             </div>
           </div>
-          <div className="flex-1 overflow-hidden">
-            <MonacoEditor
-              height="100%"
-              language="python"
-              theme="vs-dark"
-              value={pythonCode}
-              onChange={handleCodeChange}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: 'on',
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                tabSize: 4,
-                wordWrap: 'on',
-              }}
-              onMount={(editor) => {
-                editorRef.current = editor;
-              }}
-            />
-          </div>
-        </div>
 
-        {/* Right Panel: DXF Viewer */}
-        <div className="w-1/3 flex flex-col bg-gray-850">
-          <div className="flex items-center justify-between bg-gray-800 px-4 py-2 border-b border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-300">DXF Preview</h2>
+          {/* Bottom Section: Collapsible Python Code Editor */}
+          <div className="border-t border-[#27272a]">
+            {/* Collapsible Header */}
             <button
-              onClick={downloadDXF}
-              disabled={!dxf}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-semibold disabled:opacity-50"
+              onClick={() => setShowPythonCode(!showPythonCode)}
+              className="w-full flex items-center justify-between bg-[#18181b] px-4 py-3 hover:bg-[#27272a] transition-colors"
             >
-              Download DXF
-            </button>
-          </div>
-          <div className="flex-1 overflow-auto p-4">
-            {error && (
-              <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 mb-4">
-                <p className="text-sm font-semibold text-red-300 mb-2">Error:</p>
-                <pre className="text-xs text-red-200 whitespace-pre-wrap font-mono">{error}</pre>
+              <div className="flex items-center gap-3">
+                <svg
+                  className={`w-4 h-4 text-[#71717a] transition-transform ${showPythonCode ? 'rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Python Code</h3>
+                <span className="text-xs text-[#71717a]">Advanced</span>
               </div>
-            )}
-            {dxf ? (
-              <DXFViewer dxfContent={dxf} stats={stats || undefined} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                <div className="text-center">
-                  <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              {showPythonCode && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRegenerate();
+                  }}
+                  disabled={isProcessing || !pythonCode}
+                  className="flex items-center gap-2 bg-[#10b981] hover:bg-[#059669] text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  <p className="text-sm">No DXF generated yet</p>
-                  <p className="text-xs mt-2">Describe an engineering problem to get started</p>
-                </div>
+                  {isProcessing ? 'Processing...' : 'Redraw'}
+                </button>
+              )}
+            </button>
+
+            {/* Python Editor (Collapsible) */}
+            {showPythonCode && (
+              <div className="h-80 bg-[#1e1e1e]">
+                <MonacoEditor
+                  height="100%"
+                  language="python"
+                  theme="vs-dark"
+                  value={pythonCode}
+                  onChange={handleCodeChange}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    tabSize: 4,
+                    wordWrap: 'on',
+                  }}
+                  onMount={(editor) => {
+                    editorRef.current = editor;
+                  }}
+                />
               </div>
             )}
           </div>
