@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { PYTHON_TEMPLATE, SYSTEM_PROMPT_ANALYSIS, SYSTEM_PROMPT_CODE_GEN, SYSTEM_PROMPT_DESIGN_SUMMARY } from '@/lib/constants';
+import { PYTHON_TEMPLATE, SYSTEM_PROMPT_ANALYSIS, SYSTEM_PROMPT_CODE_GEN, SYSTEM_PROMPT_DESIGN_SUMMARY, SYSTEM_PROMPT_IMAGE_PROMPTS } from '@/lib/constants';
 import DesignSummary from './DesignSummary';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -145,49 +145,89 @@ Return a JSON object with the design summary.`;
     setIsGeneratingIllustrations(true);
     setIllustrations([]); // Clear previous illustrations
 
-    const viewTypes = [
-      { type: 'isometric', label: 'Isometric 3D' },
-      { type: 'sketch', label: 'Engineering Sketch' },
-      { type: 'front', label: 'Front View' },
-      { type: 'top', label: 'Top View' },
-      { type: 'render', label: '3D Rendering' }
-    ];
+    try {
+      // Step 1: Ask Claude to generate 5 optimized prompts for Gemini
+      const promptRequest = `Based on this engineering analysis, create 5 concise, professional prompts for AI image generation.
 
-    // Generate all 5 illustrations in parallel
-    const promises = viewTypes.map(async ({ type, label }) => {
-      try {
-        const response = await fetch('/api/generate-illustration', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: analysisText,
-            viewType: type
-          })
-        });
+Engineering Analysis:
+${analysisText}
 
-        if (!response.ok) {
-          throw new Error(`Failed to generate ${label}`);
-        }
+Generate prompts for: isometric 3D, engineering sketch, front view, top view, and 3D rendering.`;
 
-        const data = await response.json();
-        
-        if (data.success && data.image) {
-          // Add illustration as soon as it's ready (don't wait for all 5)
-          setIllustrations(prev => [...prev, {
-            viewType: type,
-            image: data.image,
-            label: label
-          }]);
-        }
-      } catch (error) {
-        console.error(`Error generating ${label}:`, error);
-        // Continue with other illustrations even if one fails
+      const claudeResponse = await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage: promptRequest,
+          systemPrompt: SYSTEM_PROMPT_IMAGE_PROMPTS,
+          isCodeGen: false
+        })
+      });
+
+      if (!claudeResponse.ok) {
+        throw new Error('Failed to generate image prompts from Claude');
       }
-    });
 
-    // Wait for all to complete, but illustrations populate as they arrive
-    await Promise.allSettled(promises);
-    setIsGeneratingIllustrations(false);
+      const claudeData = await claudeResponse.json();
+      
+      // Extract JSON array from Claude's response
+      const jsonMatch = claudeData.content.match(/```json\n([\s\S]*?)```/) || claudeData.content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('Failed to parse prompts from Claude');
+      }
+
+      const jsonStr = jsonMatch[1] || jsonMatch[0];
+      const prompts: string[] = JSON.parse(jsonStr);
+
+      if (!Array.isArray(prompts) || prompts.length !== 5) {
+        throw new Error('Invalid prompts format from Claude');
+      }
+
+      // Step 2: Send all 5 prompts to Gemini in parallel
+      const viewLabels = [
+        'Isometric 3D',
+        'Engineering Sketch',
+        'Front View',
+        'Top View',
+        '3D Rendering'
+      ];
+
+      const promises = prompts.map(async (prompt, index) => {
+        try {
+          const response = await fetch('/api/generate-illustration', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }) // Just send the Claude-generated prompt
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to generate ${viewLabels[index]}`);
+          }
+
+          const data = await response.json();
+          
+          if (data.success && data.image) {
+            // Add illustration as soon as it's ready (don't wait for all 5)
+            setIllustrations(prev => [...prev, {
+              viewType: `view-${index}`,
+              image: data.image,
+              label: viewLabels[index]
+            }]);
+          }
+        } catch (error) {
+          console.error(`Error generating ${viewLabels[index]}:`, error);
+          // Continue with other illustrations even if one fails
+        }
+      });
+
+      // Wait for all to complete, but illustrations populate as they arrive
+      await Promise.allSettled(promises);
+      
+    } catch (error) {
+      console.error('Error in illustration generation pipeline:', error);
+    } finally {
+      setIsGeneratingIllustrations(false);
+    }
   };
 
   const executeDXFCode = async (fullCode: string, attempt: number = 1, maxAttempts: number = 3): Promise<any> => {
@@ -496,10 +536,18 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
         <div className="w-3/5 flex flex-col">
           {/* Top: DXF + Summary */}
           <div className="flex-1 flex overflow-hidden">
-            {/* DXF Viewer + Illustrations (60%) */}
+            {/* Illustrations + DXF Viewer (60%) */}
             <div className="w-3/5 border-r flex flex-col">
-              {/* DXF Viewer (top half) */}
-              <div className="flex-1 flex flex-col border-b">
+              {/* AI Illustrations (top half) */}
+              <div className="flex-1 overflow-auto p-6 border-b">
+                <IllustrationViewer 
+                  illustrations={illustrations} 
+                  isLoading={isGeneratingIllustrations} 
+                />
+              </div>
+
+              {/* DXF Viewer (bottom half) */}
+              <div className="flex-1 flex flex-col">
                 <div className="border-b p-4 flex items-center justify-between">
                   <h2 className="text-sm font-semibold">CAD Drawing</h2>
                   <Button onClick={downloadDXF} disabled={!dxf} size="sm" variant="outline" className="gap-2">
@@ -530,14 +578,6 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* AI Illustrations (bottom half) */}
-              <div className="flex-1 overflow-auto p-6">
-                <IllustrationViewer 
-                  illustrations={illustrations} 
-                  isLoading={isGeneratingIllustrations} 
-                />
               </div>
             </div>
 

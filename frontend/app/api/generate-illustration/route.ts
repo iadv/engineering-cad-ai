@@ -5,11 +5,11 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, viewType } = await request.json();
+    const { prompt } = await request.json();
 
-    if (!prompt || !viewType) {
+    if (!prompt) {
       return NextResponse.json(
-        { error: 'Prompt and viewType are required' },
+        { error: 'Prompt is required' },
         { status: 400 }
       );
     }
@@ -23,20 +23,10 @@ export async function POST(request: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-    // Craft professional engineering illustration prompt based on view type
-    const viewPrompts: Record<string, string> = {
-      isometric: `Create a professional isometric 3D technical illustration of: ${prompt}. Style: Clean engineering diagram with precise lines, professional CAD-style rendering, technical details visible, white background, high quality.`,
-      sketch: `Create a professional engineering sketch illustration of: ${prompt}. Style: Hand-drawn technical sketch with dimension lines, annotations, clean linework, engineering blueprint aesthetic, white background.`,
-      front: `Create a professional front view technical illustration of: ${prompt}. Style: Orthographic engineering view, precise dimensions, technical drawing style, clean lines, white background, CAD rendering quality.`,
-      top: `Create a professional top view technical illustration of: ${prompt}. Style: Orthographic engineering view from above, technical drawing style, dimension lines, clean CAD aesthetic, white background.`,
-      render: `Create a professional photorealistic 3D rendering of: ${prompt}. Style: High-quality engineering visualization, realistic materials, professional lighting, technical accuracy, studio background.`
-    };
-
-    const fullPrompt = viewPrompts[viewType] || viewPrompts.isometric;
-
+    // Use the Claude-optimized prompt directly
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: fullPrompt,
+      contents: prompt,
     });
 
     // Extract image from response
@@ -47,7 +37,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           image: imageData, // Base64 encoded image
-          viewType,
         });
       }
     }
