@@ -451,8 +451,8 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
 
       {/* Main Content */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        {/* Left: Chat (25% on desktop, full width on mobile) */}
-        <div className="w-full md:w-1/4 border-r flex flex-col h-1/2 md:h-auto">
+        {/* Left: Chat (30% on desktop, full width on mobile) */}
+        <div className="w-full md:w-3/10 border-r flex flex-col h-1/2 md:h-auto">
           <ScrollArea className="flex-1 p-4 md:p-6">
             {messages.length === 0 && (
               <div className="text-center mt-12">
@@ -538,12 +538,12 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
           </div>
         </div>
 
-        {/* Right: DXF Viewer + Design Summary + Code (75% on desktop, full width on mobile) */}
-        <div className="w-full md:w-3/4 flex flex-col h-1/2 md:h-auto">
+        {/* Right: DXF Viewer + Design Summary + Code (70% on desktop, full width on mobile) */}
+        <div className="w-full md:w-7/10 flex flex-col h-1/2 md:h-auto">
           {/* Top: DXF + Summary */}
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            {/* Illustrations + DXF Viewer (70% on desktop, full width on mobile) */}
-            <div className="w-full md:w-7/10 border-r flex flex-col">
+            {/* Illustrations + DXF Viewer (75% on desktop, full width on mobile) */}
+            <div className="w-full md:w-3/4 border-r flex flex-col">
               {/* AI Illustrations (65% of vertical space) */}
               <div className="flex-[1.8] flex flex-col border-b overflow-hidden">
                 <div className="border-b p-4 flex items-center justify-between flex-shrink-0">
@@ -592,8 +592,8 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
               </div>
             </div>
 
-            {/* Design Summary (30% on desktop, full width on mobile) */}
-            <div className="w-full md:w-3/10 bg-muted/30">
+            {/* Design Summary (25% on desktop, full width on mobile) */}
+            <div className="w-full md:w-1/4 bg-muted/30">
               <ScrollArea className="h-full p-4 md:p-6">
                 <DesignSummary summary={designSummary} />
               </ScrollArea>
