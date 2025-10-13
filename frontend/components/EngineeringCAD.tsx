@@ -165,15 +165,15 @@ Return a JSON object with the design summary.`;
           
           The 5 required prompts:
 
-          Isometric 3D CAD-style view: “Isometric 3D view or clean 2D CAD-style drawing of the design, plain white background.”
+          Isometric 3D CAD-style view: Isometric 3D view or clean 2D CAD-style drawing of the design, plain white background. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
           
-          Engineering sketch with dimensions: “Technical engineering sketch, CAD-style, showing dimensions and proportions.”
+          Engineering sketch with dimensions: Technical engineering sketch, CAD-style, showing dimensions and proportions. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
           
-          Orthographic front view: “Engineering front view in orthographic projection, precise proportions.”
+          Orthographic front view: Engineering front view in orthographic projection, precise proportions. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
           
-          Orthographic top view: “Engineering top view in orthographic projection, precise proportions.”
+          Orthographic top view: Engineering top view in orthographic projection, precise proportions. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
           
-          Photorealistic rendering: “Photorealistic 3D rendering of the design, studio lighting, metallic/material textures.”
+          Photorealistic rendering: Photorealistic 3D rendering of the design as if it was rendered in a studio with studio lighting, metallic/material textures. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
           
           Engineering Analysis Input: ${analysisText}
 
