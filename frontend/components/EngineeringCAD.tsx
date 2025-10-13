@@ -147,12 +147,38 @@ Return a JSON object with the design summary.`;
 
     try {
       // Step 1: Ask Claude to generate 5 optimized prompts for Gemini
-      const promptRequest = `Based on this engineering analysis, create 5 concise, professional prompts for AI image generation.
+      const promptRequest = `You are helping generate image prompts for an AI image generation system called Nano Banana.
 
-Engineering Analysis:
-${analysisText}
+          I will give you an engineering analysis text. Your task is to create 5 clear, concise, professional prompts for image generation. Each prompt should describe the same design/part/component from the analysis, but in a different style or view. 
+          
+          Guidelines:
+          
+          Use the engineering analysis only to extract details about the geometry, shape, and dimensions/proportions of the design.
+          
+          Do not include any forces, boundary conditions, loads, or irrelevant explanatory text in the prompts.
+          
+          Ensure prompts emphasize correct proportions and dimensions so the design looks like it was derived from the analysis and not random.
+          
+          Keep backgrounds plain/neutral unless otherwise specified.
+          
+          Each prompt should be standalone and phrased as if being sent directly to an image generator.
+          
+          The 5 required prompts:
 
-Generate prompts for: isometric 3D, engineering sketch, front view, top view, and 3D rendering.`;
+          Isometric 3D CAD-style view: “Isometric 3D view or clean 2D CAD-style drawing of the design, plain white background.”
+          
+          Engineering sketch with dimensions: “Technical engineering sketch, CAD-style, showing dimensions and proportions.”
+          
+          Orthographic front view: “Engineering front view in orthographic projection, precise proportions.”
+          
+          Orthographic top view: “Engineering top view in orthographic projection, precise proportions.”
+          
+          Photorealistic rendering: “Photorealistic 3D rendering of the design, studio lighting, metallic/material textures.”
+          
+          Engineering Analysis Input: ${analysisText}
+
+          Output format:
+          Return exactly 5 prompts (one for each style above), customized based on the engineering analysis text I provide. Do not include commentary or explanations, only the prompts.`;
 
       const claudeResponse = await fetch('/api/claude', {
         method: 'POST',
