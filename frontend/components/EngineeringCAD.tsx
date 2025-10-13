@@ -542,8 +542,8 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
         <div className="w-full md:w-7/10 flex flex-col h-1/2 md:h-auto">
           {/* Top: DXF + Summary */}
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            {/* Illustrations + DXF Viewer (75% on desktop, full width on mobile) */}
-            <div className="w-full md:w-3/4 border-r flex flex-col">
+            {/* Illustrations + DXF Viewer (65% on desktop, full width on mobile) */}
+            <div className="w-full md:w-[65%] border-r flex flex-col">
               {/* AI Illustrations (65% of vertical space) */}
               <div className="flex-[1.8] flex flex-col border-b overflow-hidden">
                 <div className="border-b p-4 flex items-center justify-between flex-shrink-0">
@@ -592,8 +592,8 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
               </div>
             </div>
 
-            {/* Design Summary (25% on desktop, full width on mobile) */}
-            <div className="w-full md:w-1/4 bg-muted/30">
+            {/* Design Summary (35% on desktop, full width on mobile) */}
+            <div className="w-full md:w-[35%] bg-muted/30">
               <ScrollArea className="h-full p-4 md:p-6">
                 <DesignSummary summary={designSummary} />
               </ScrollArea>
