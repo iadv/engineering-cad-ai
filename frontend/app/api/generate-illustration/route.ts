@@ -23,6 +23,17 @@ export async function POST(request: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
+    // Log prompt details
+    console.log('\n' + '='.repeat(80));
+    console.log('🎨 GEMINI (NANO BANANA) API CALL');
+    console.log('='.repeat(80));
+    console.log('🤖 Model: gemini-2.5-flash-image');
+    console.log('🖼️  Purpose: Generate Engineering Illustration');
+    console.log('\n📝 IMAGE GENERATION PROMPT:');
+    console.log('-'.repeat(80));
+    console.log(prompt);
+    console.log('='.repeat(80) + '\n');
+
     // Use the Claude-optimized prompt directly
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -48,6 +59,8 @@ export async function POST(request: NextRequest) {
     for (const part of candidate.content.parts) {
       if (part.inlineData) {
         const imageData = part.inlineData.data;
+        
+        console.log('✅ GEMINI: Image generated successfully! Size:', imageData.length, 'bytes\n');
         
         return NextResponse.json({
           success: true,

@@ -35,6 +35,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Log prompt details
+    console.log('\n' + '='.repeat(80));
+    console.log('🤖 CLAUDE API CALL');
+    console.log('='.repeat(80));
+    console.log('📋 Type:', isCodeGen ? 'CODE GENERATION' : 'ANALYSIS/CHAT');
+    console.log('🔧 Temperature:', isCodeGen ? 0.3 : 0.7);
+    console.log('📊 Max Tokens:', isCodeGen ? 8000 : 4000);
+    console.log('\n📝 SYSTEM PROMPT:');
+    console.log('-'.repeat(80));
+    console.log(systemPrompt?.substring(0, 500) + (systemPrompt?.length > 500 ? '...' : ''));
+    console.log('\n💬 USER MESSAGE:');
+    console.log('-'.repeat(80));
+    console.log(userMessage.substring(0, 500) + (userMessage.length > 500 ? '...' : ''));
+    if (errorContext) {
+      console.log('\n❌ ERROR CONTEXT:');
+      console.log('-'.repeat(80));
+      console.log(errorContext.substring(0, 300) + (errorContext.length > 300 ? '...' : ''));
+    }
+    console.log('='.repeat(80) + '\n');
+
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: isCodeGen ? 8000 : 4000,
@@ -45,6 +65,11 @@ export async function POST(request: NextRequest) {
 
     const textBlock = message.content.find((block: any) => block.type === 'text');
     const textContent = textBlock && 'text' in textBlock ? textBlock.text : '';
+
+    // Log response details
+    console.log('✅ CLAUDE: Response received!');
+    console.log('📊 Token Usage: Input:', message.usage.input_tokens, '| Output:', message.usage.output_tokens, '| Total:', message.usage.input_tokens + message.usage.output_tokens);
+    console.log('📏 Response Length:', textContent.length, 'characters\n');
 
     return NextResponse.json({
       content: textContent,
