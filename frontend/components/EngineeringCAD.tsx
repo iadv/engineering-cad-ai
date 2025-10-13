@@ -147,38 +147,11 @@ Return a JSON object with the design summary.`;
 
     try {
       // Step 1: Ask Claude to generate 5 optimized prompts for Gemini
-      const promptRequest = `You are helping generate image prompts for an AI image generation system called Nano Banana.
+      const promptRequest = `Here is the
+          
+          Engineering Analysis output: ${analysisText}
 
-          I will give you an engineering analysis text. Your task is to create 5 clear, concise, professional prompts for image generation. Each prompt should describe the same design/part/component from the analysis, but in a different style or view. 
-          
-          Guidelines:
-          
-          Use the engineering analysis only to extract details about the geometry, shape, and dimensions/proportions of the design.
-          
-          Do not include any forces, boundary conditions, loads, or irrelevant explanatory text in the prompts.
-          
-          Ensure prompts emphasize correct proportions and dimensions so the design looks like it was derived from the analysis and not random.
-          
-          Keep backgrounds plain/neutral unless otherwise specified.
-          
-          Each prompt should be standalone and phrased as if being sent directly to an image generator.
-          
-          The 5 required prompts:
-
-          Isometric 3D CAD-style view: Isometric 3D view or clean 2D CAD-style drawing of the design, plain white background. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
-          
-          Engineering sketch with dimensions: Technical engineering sketch, CAD-style, showing dimensions and proportions. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
-          
-          Orthographic front view: Engineering front view in orthographic projection, precise proportions. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
-          
-          Orthographic top view: Engineering top view in orthographic projection, precise proportions. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
-          
-          Photorealistic rendering: Photorealistic 3D rendering of the design as if it was rendered in a studio with studio lighting, metallic/material textures. Dont mention the background in the prompt. Dont include forces, boundary conditions, loads, or irrelevant explanatory text in the prompt.
-          
-          Engineering Analysis Input: ${analysisText}
-
-          Output format:
-          Return exactly 5 prompts (one for each style above), customized based on the engineering analysis text I provide. Do not include commentary or explanations, only the prompts.`;
+          Generate prompts based on the instructions`;
 
       const claudeResponse = await fetch('/api/claude', {
         method: 'POST',
@@ -210,15 +183,17 @@ Return a JSON object with the design summary.`;
       }
 
       // Step 2: Send all 5 prompts to Gemini in parallel
-      const viewLabels = [
-        'Isometric 3D',
-        'Engineering Sketch',
-        'Front View',
-        'Top View',
-        '3D Rendering'
-      ];
+      // Extract short labels from prompts (first few words) or use generic View 1, 2, 3...
+      const generateLabel = (prompt: string, index: number): string => {
+        // Try to extract a meaningful short label from the prompt
+        const words = prompt.split(' ').slice(0, 6).join(' ');
+        const shortLabel = words.length > 30 ? words.substring(0, 30) + '...' : words;
+        return shortLabel || `View ${index + 1}`;
+      };
 
       const promises = prompts.map(async (prompt, index) => {
+        const viewLabel = generateLabel(prompt, index);
+        
         try {
           const response = await fetch('/api/generate-illustration', {
             method: 'POST',
@@ -227,7 +202,7 @@ Return a JSON object with the design summary.`;
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to generate ${viewLabels[index]}`);
+            throw new Error(`Failed to generate ${viewLabel}`);
           }
 
           const data = await response.json();
@@ -237,11 +212,11 @@ Return a JSON object with the design summary.`;
             setIllustrations(prev => [...prev, {
               viewType: `view-${index}`,
               image: data.image,
-              label: viewLabels[index]
+              label: viewLabel
             }]);
           }
         } catch (error) {
-          console.error(`Error generating ${viewLabels[index]}:`, error);
+          console.error(`Error generating ${viewLabel}:`, error);
           // Continue with other illustrations even if one fails
         }
       });
@@ -350,7 +325,7 @@ Return a JSON object with the design summary.`;
 
       // Step 2: Generate Python code
       setStatus({ stage: 'generating', message: 'Generating Python code...' });
-      const codePrompt = `Based on this engineering analysis, generate Python code using ezdxf to create the CAD drawing.
+      const codePrompt = `Based on this engineering analysis, generate Python code using ezdxf documentation to create the CAD drawing.
 
 Analysis:
 ${analysisResponse}
@@ -362,6 +337,9 @@ Requirements:
 - Add proper annotations and labels
 - Use appropriate layers
 - Generate complete, production-ready code
+
+python template:
+${PYTHON_TEMPLATE}
 
 Return ONLY the Python code to add after the drawing section marker, wrapped in \`\`\`python blocks.`;
 
