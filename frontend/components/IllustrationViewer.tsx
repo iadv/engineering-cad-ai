@@ -57,8 +57,8 @@ export default function IllustrationViewer({ illustrations, isLoading }: Illustr
   const currentIllustration = illustrations[currentIndex];
 
   return (
-    <Card>
-      <CardContent className="p-4">
+    <Card className="h-full flex flex-col">
+      <CardContent className="p-4 flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -73,18 +73,17 @@ export default function IllustrationViewer({ illustrations, isLoading }: Illustr
           </Badge>
         </div>
 
-        {/* Image Display */}
-        <div className="relative bg-muted rounded-lg overflow-hidden mb-4" style={{ minHeight: '300px' }}>
+        {/* Image Display - Flex grows to fill available space */}
+        <div className="relative bg-muted rounded-lg overflow-hidden mb-4 flex-1 flex items-center justify-center">
           <img
             src={`data:image/png;base64,${currentIllustration.image}`}
             alt={currentIllustration.label}
-            className="w-full h-full object-contain"
-            style={{ maxHeight: '400px' }}
+            className="max-w-full max-h-full object-contain"
           />
         </div>
 
         {/* Carousel Controls */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-shrink-0">
           <Button
             variant="outline"
             size="sm"

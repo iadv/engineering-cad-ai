@@ -545,15 +545,20 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
             {/* Illustrations + DXF Viewer (60% on desktop, full width on mobile) */}
             <div className="w-full md:w-3/5 border-r flex flex-col">
               {/* AI Illustrations (top half) */}
-              <div className="flex-1 overflow-auto p-4 md:p-6 border-b">
-                <IllustrationViewer 
-                  illustrations={illustrations} 
-                  isLoading={isGeneratingIllustrations} 
-                />
+              <div className="flex-1 flex flex-col border-b overflow-hidden">
+                <div className="border-b p-4 flex items-center justify-between flex-shrink-0">
+                  <h2 className="text-sm font-semibold">AI Illustrations</h2>
+                </div>
+                <div className="flex-1 overflow-hidden p-4 md:p-6">
+                  <IllustrationViewer 
+                    illustrations={illustrations} 
+                    isLoading={isGeneratingIllustrations} 
+                  />
+                </div>
               </div>
 
               {/* DXF Viewer (bottom half) */}
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="border-b p-4 flex items-center justify-between">
                   <h2 className="text-sm font-semibold">CAD Drawing</h2>
                   <Button onClick={downloadDXF} disabled={!dxf} size="sm" variant="outline" className="gap-2">
