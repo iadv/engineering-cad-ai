@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     for (const part of candidate.content.parts) {
-      if (part.inlineData) {
+      if (part.inlineData && part.inlineData.data) {
         const imageData = part.inlineData.data;
         
         console.log('✅ GEMINI: Image generated successfully! Size:', imageData.length, 'bytes\n');
