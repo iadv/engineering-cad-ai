@@ -20,12 +20,36 @@ interface IllustrationViewerProps {
 export default function IllustrationViewer({ illustrations, isLoading }: IllustrationViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // 1) Reset index when a new list comes in
+  useEffect(() => {
+      setCurrentIndex(0);
+    }, [illustrations]);
+  
+  // 2) Compute a safe index (guards against out-of-range during repopulation)
+  const safeIndex = useMemo(() => {
+      if (!illustrations.length) return 0;
+      return Math.min(currentIndex, illustrations.length - 1);
+    }, [currentIndex, illustrations]);
+  
+  // 3) Safe access
+  const currentIllustration = illustrations.length ? illustrations[safeIndex] : undefined;
+  
+  // 4) Universal label fallback
+  const safeLabel =
+      (currentIllustration?.label && String(currentIllustration.label).trim()) ||
+      (currentIllustration?.viewType && String(currentIllustration.viewType).trim()) ||
+      `View ${safeIndex + 1}`;
+  
+  // 5) Navigation with guards
+  const canNav = illustrations.length > 1;
 
   const handlePrevious = () => {
+    if (!canNav) return;
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : illustrations.length - 1));
   };
 
   const handleNext = () => {
+    if (!canNav) return;
     setCurrentIndex((prev) => (prev < illustrations.length - 1 ? prev + 1 : 0));
   };
 
@@ -34,8 +58,8 @@ export default function IllustrationViewer({ illustrations, isLoading }: Illustr
       <Card>
         <CardContent className="p-8 flex flex-col items-center justify-center min-h-[300px]">
           <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-          <p className="text-sm text-muted-foreground">Generating illustrations...</p>
-          <p className="text-xs text-muted-foreground/70 mt-2">Refreshing the views</p>
+          <p className="text-sm text-muted-foreground">Generating professional illustrations...</p>
+          <p className="text-xs text-muted-foreground/70 mt-2">Using Gemini AI</p>
         </CardContent>
       </Card>
     );
@@ -55,7 +79,13 @@ export default function IllustrationViewer({ illustrations, isLoading }: Illustr
     );
   }
 
-  const currentIllustration = illustrations[currentIndex];
+  // const currentIllustration = illustrations[currentIndex];
+
+  // Build a safe src (handles either raw base64 or already-data URL)
+  const imgSrc =
+    currentIllustration?.image?.startsWith('data:image')
+      ? currentIllustration.image
+      : `data:image/png;base64,${currentIllustration?.image ?? ''}`;
 
   return (
     <Card className="h-full flex flex-col">

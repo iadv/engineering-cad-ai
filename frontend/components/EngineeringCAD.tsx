@@ -55,6 +55,9 @@ export default function EngineeringCAD() {
   const [designSummary, setDesignSummary] = useState<any>(null);
   const [illustrations, setIllustrations] = useState<Array<{ viewType: string; image: string; label: string }>>([]);
   const [isGeneratingIllustrations, setIsGeneratingIllustrations] = useState(false);
+
+  // ⬇️ add here
+  const [illustrationSession, setIllustrationSession] = useState(0);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
@@ -71,7 +74,8 @@ export default function EngineeringCAD() {
     userMessage: string,
     systemPrompt: string,
     isCodeGen: boolean = false,
-    errorContext: string | null = null
+    errorContext: string | null = null,
+    saveToHistory: boolean = true
   ): Promise<string> => {
     const response = await fetch('/api/claude', {
       method: 'POST',
@@ -80,7 +84,7 @@ export default function EngineeringCAD() {
         userMessage,
         systemPrompt,
         isCodeGen,
-        conversationHistory,
+        conversationHistory, // still pass it, but only maintained by analysis
         errorContext
       })
     });
@@ -92,13 +96,14 @@ export default function EngineeringCAD() {
 
     const data = await response.json();
     
-    // Update conversation history
-    setConversationHistory(prev => [
-      ...prev,
-      { role: 'user', content: userMessage },
-      { role: 'assistant', content: data.content }
-    ]);
-
+    if (saveToHistory) {
+      // Update conversation history
+      setConversationHistory(prev => [
+        ...prev,
+        { role: 'user', content: userMessage },
+        { role: 'assistant', content: data.content }
+      ]);
+    }
     return data.content;
   };
 
@@ -134,7 +139,9 @@ Return a JSON object with the design summary.`;
         const jsonStr = jsonMatch[1] || jsonMatch[0];
         const summary = JSON.parse(jsonStr);
         setDesignSummary(summary);
+        return summary;
       }
+      return null;
     } catch (error) {
       console.error('Design summary generation failed:', error);
       // Don't block the main flow if summary fails
@@ -142,6 +149,7 @@ Return a JSON object with the design summary.`;
   };
 
   const generateIllustrations = async (analysisText: string) => {
+    setIllustrationSession(s => s + 1);   // <— add this
     setIsGeneratingIllustrations(true);
     setIllustrations([]); // Clear previous illustrations
 
@@ -150,6 +158,8 @@ Return a JSON object with the design summary.`;
       const promptRequest = `Here is the
           
           Engineering Analysis output: ${analysisText}
+
+          Take only the design dimensions and information about the design from the analysis outputand ignore everything else.
 
           Generate prompts based on the instructions`;
 
@@ -231,6 +241,113 @@ Return a JSON object with the design summary.`;
     }
   };
 
+  const generateIllustrations1 = async (summaryOrText: any) => {
+    setIllustrationSession(s => s + 1);   // <— add this
+    setIsGeneratingIllustrations(true);
+    setIllustrations([]); // Clear previous illustrations
+  
+    try {
+      // Build a concise dimension-only brief
+      let dimsBrief = '';
+      if (summaryOrText && typeof summaryOrText === 'object') {
+        const s = summaryOrText;
+        const title = s.title || s.name || '';
+        const units = s.units ? `Units: ${s.units}.` : '';
+        const geometry = Array.isArray(s.geometry)
+          ? s.geometry.join('; ')
+          : (s.geometry_description || '');
+        const dims = Array.isArray(s.dimensions)
+          ? s.dimensions
+              .map((d: any) => {
+                const n = d.name || d.key || '';
+                const v = d.value ?? d.val ?? '';
+                const u = d.unit ? ` ${d.unit}` : '';
+                const pos = d.location ? ` @${d.location}` : '';
+                return n && (v !== '') ? `${n}:${v}${u}${pos}` : '';
+              })
+              .filter(Boolean)
+              .join(', ')
+          : '';
+        dimsBrief = [title, units, geometry, dims].filter(Boolean).join(' ');
+      } else if (typeof summaryOrText === 'string') {
+        dimsBrief = summaryOrText;
+      }
+  
+      // Ask Claude for 5 prompts (strict JSON array)
+      const promptRequest = `
+  Design-only facts (ignore commentary):
+  ${dimsBrief}
+  
+  Generate 5 image prompts following the system rules.
+  Return ONLY a JSON array of 5 strings (no prose).`;
+  
+      const claudeResponse = await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userMessage: promptRequest,
+          systemPrompt: SYSTEM_PROMPT_IMAGE_PROMPTS,
+          isCodeGen: false
+        })
+      });
+  
+      if (!claudeResponse.ok) throw new Error('Failed to generate image prompts from Claude');
+  
+      const claudeData = await claudeResponse.json();
+  
+      // Robust JSON extraction: codefence or raw array
+      const jsonMatch =
+        claudeData.content.match(/```json\s*([\s\S]*?)```/) ||
+        claudeData.content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error('No prompts JSON found in Claude response');
+  
+      const jsonStr = (jsonMatch[1] || jsonMatch[0]).trim();
+      let prompts: string[];
+      try {
+        prompts = JSON.parse(jsonStr);
+      } catch (e) {
+        console.error('Prompt JSON parse error. Raw:', jsonStr);
+        throw e;
+      }
+  
+      if (!Array.isArray(prompts) || prompts.length !== 5)
+        throw new Error('Claude returned an invalid prompts array (need exactly 5 strings)');
+  
+      // Fire all 5 image generations in parallel
+      const labelOf = (p: string, i: number) => {
+        const words = p.split(' ').slice(0, 6).join(' ');
+        return words.length > 30 ? words.slice(0, 30) + '...' : words || `View ${i + 1}`;
+      };
+  
+      const jobs = prompts.map(async (prompt, i) => {
+        const viewLabel = labelOf(prompt, i);
+        try {
+          const r = await fetch('/api/generate-illustration', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+          });
+          if (!r.ok) throw new Error(`Image gen HTTP error for "${viewLabel}"`);
+          const data = await r.json();
+          if (data.success && data.image) {
+            setIllustrations(prev => [...prev, { viewType: `view-${i}`, image: data.image, label: viewLabel }]);
+          } else {
+            console.warn('Image gen returned no image for', viewLabel, data);
+          }
+        } catch (err) {
+          console.error(`Error generating ${viewLabel}:`, err);
+        }
+      });
+  
+      await Promise.allSettled(jobs);
+    } catch (err) {
+      console.error('Error in illustration generation pipeline:', err);
+    } finally {
+      setIsGeneratingIllustrations(false);
+    }
+  };
+  
+
   const executeDXFCode = async (fullCode: string, attempt: number = 1, maxAttempts: number = 3): Promise<any> => {
     setStatus({ stage: 'executing', message: `Executing DXF code (attempt ${attempt}/${maxAttempts})...` });
     setExecutionLog(prev => [...prev, `Attempt ${attempt}/${maxAttempts}: Executing code...`]);
@@ -264,7 +381,8 @@ Return a JSON object with the design summary.`;
             fullCode,  // Send the full code context for fixing
             SYSTEM_PROMPT_CODE_GEN,
             true,
-            result.error
+            result.error,
+            false
           );
           
           // Extract code from response
@@ -294,6 +412,9 @@ Return a JSON object with the design summary.`;
     e.preventDefault();
     if (!inputValue.trim() || isProcessing) return;
 
+    // New top-level run: clear analysis thread
+    setConversationHistory([]);
+
     const userMessage = inputValue.trim();
     setInputValue('');
     addMessage('user', userMessage);
@@ -304,31 +425,35 @@ Return a JSON object with the design summary.`;
     try {
       // Step 1: Analyze the engineering problem
       setStatus({ stage: 'analyzing', message: 'Analyzing engineering requirements...' });
-      const analysisResponse = await callClaude(userMessage, SYSTEM_PROMPT_ANALYSIS, false);
+      const analysisResponse = await callClaude(userMessage, SYSTEM_PROMPT_ANALYSIS, false, null, true);
       addMessage('assistant', analysisResponse);
 
       // Check if Claude is asking for more information
-      if (analysisResponse.toLowerCase().includes('could you') || 
-          analysisResponse.toLowerCase().includes('please provide') ||
-          analysisResponse.toLowerCase().includes('what is') ||
-          analysisResponse.toLowerCase().includes('clarify')) {
-        setStatus({ stage: 'idle', message: 'Waiting for more information...' });
-        setIsProcessing(false);
-        return;
-      }
+      // if (analysisResponse.toLowerCase().includes('could you') || 
+      //     analysisResponse.toLowerCase().includes('please provide') ||
+      //    analysisResponse.toLowerCase().includes('what is') ||
+      //    analysisResponse.toLowerCase().includes('clarify')) {
+      //  setStatus({ stage: 'idle', message: 'Waiting for more information...' });
+      //  setIsProcessing(false);
+      //  return;
+      //}
 
       // Generate design summary in parallel (don't await - let it run in background)
-      generateDesignSummary(analysisResponse, userMessage);
+      generateDesignSummary(analysisResponse, userMessage)
+        .then(summary => generateIllustrations1(summary ?? analysisResponse));
 
       // Generate AI illustrations in parallel (don't await - populate as they arrive)
-      generateIllustrations(analysisResponse);
+      //generateIllustrations(analysisResponse);
 
       // Step 2: Generate Python code
       setStatus({ stage: 'generating', message: 'Generating Python code...' });
       const codePrompt = `Based on this engineering analysis, generate Python code using ezdxf documentation to create the CAD drawing.
 
-Analysis:
+Take only the design dimensions and information about the design from the analysis outputand ignore everything else.
+
+Analysis output:
 ${analysisResponse}
+
 
 Requirements:
 - Add code ONLY after the "# ========== DRAWING SECTION - EDIT BELOW ==========" line
@@ -343,7 +468,7 @@ ${PYTHON_TEMPLATE}
 
 Return ONLY the Python code to add after the drawing section marker, wrapped in \`\`\`python blocks.`;
 
-      const codeResponse = await callClaude(codePrompt, SYSTEM_PROMPT_CODE_GEN, true);
+      const codeResponse = await callClaude(codePrompt, SYSTEM_PROMPT_CODE_GEN, true, null, false);
 
       // Extract Python code from response
       const codeMatch = codeResponse.match(/```python\n([\s\S]*?)```/) || codeResponse.match(/```\n([\s\S]*?)```/);
@@ -550,7 +675,8 @@ Return ONLY the Python code to add after the drawing section marker, wrapped in 
                   <h2 className="text-sm font-semibold">AI Illustrations</h2>
                 </div>
                 <div className="flex-1 overflow-hidden p-4 md:p-6">
-                  <IllustrationViewer 
+                  <IllustrationViewer
+                    key={illustrationSession}  // <— add this
                     illustrations={illustrations} 
                     isLoading={isGeneratingIllustrations} 
                   />
